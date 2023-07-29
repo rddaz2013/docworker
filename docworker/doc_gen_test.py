@@ -44,14 +44,13 @@ class MiscCoverageTestCase(unittest.TestCase):
 class BasicDocGenTestCase(unittest.TestCase):
 
   def setUp(self):
-    self.user_dir = tempfile.TemporaryDirectory()        
+    self.user_dir = tempfile.TemporaryDirectory()
     orig_file = 'PA utility.docx'
     path = os.path.join(os.path.dirname(__file__),
                         'samples/', orig_file)
-    f = open(path, 'rb')
-    self.filename = document.find_or_create_doc(self.user_dir.name,
-                                                orig_file, f)
-    f.close()
+    with open(path, 'rb') as f:
+      self.filename = document.find_or_create_doc(self.user_dir.name,
+                                                  orig_file, f)
     self.doc_path = self.get_doc_file_path(self.filename)
     self.document = document.load_document(self.doc_path)
     doc_gen.FAKE_AI_COMPLETION=True
@@ -62,7 +61,7 @@ class BasicDocGenTestCase(unittest.TestCase):
     self.user_dir.cleanup()    
 
   def get_doc_file_path(self, doc_name):
-    file_name = doc_name + '.daf'
+    file_name = f'{doc_name}.daf'
     return os.path.join(self.user_dir.name, file_name)
   
   

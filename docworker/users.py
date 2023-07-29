@@ -64,9 +64,7 @@ def get_user_by_key(db, key):
   result = db.execute(
     "SELECT username FROM user WHERE access_key = ?",
     (key,)).fetchone()
-  if result is not None:
-    return result[0]
-  return None
+  return result[0] if result is not None else None
 
 def get_user_key(db, name):
   """
@@ -76,9 +74,7 @@ def get_user_key(db, name):
   result = db.execute(
     "SELECT access_key FROM user WHERE username = ?",
     (name,)).fetchone()
-  if result is not None:
-    return result[0]
-  return None
+  return result[0] if result is not None else None
 
 def set_user_key(db, name, key):
     logging.info("set user key %s", name)
@@ -139,11 +135,11 @@ def populate_samples(user_dir):
   """
   Copy sample docs into user dir.
   """
-  print("user dir = %s" % user_dir)
+  print(f"user dir = {user_dir}")
   samples_dir = pkg_resources.resource_filename('docworker', 'samples')
-  print("samples dir = %s" % samples_dir)  
+  print(f"samples dir = {samples_dir}")
   if not os.path.exists(samples_dir):
-    print("%s not found" % samples_dir)
+    print(f"{samples_dir} not found")
 
   if not os.path.exists(user_dir):    
     os.makedirs(user_dir)
@@ -159,7 +155,7 @@ def report_user(db, name):
     "SELECT id, access_key, consumed_tokens, limit_tokens, last_access, last_email FROM user WHERE username = ?",
     (name,)).fetchone()
   if result is None:
-    print("User %s not found." % name)
+    print(f"User {name} not found.")
   else:
     (id, access_key, consumed_tokens, limit_tokens, last_access, last_email) = result
     print("User (%d) %s" % (id, name))

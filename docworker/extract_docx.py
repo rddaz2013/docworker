@@ -38,7 +38,7 @@ class DocXExtract:
                 if (item._p.style is not None):
                     if (item._p.style.startswith('Heading') or
                         item._p.style.startswith('Title')):
-                        print('<%s>' % item._p.style, file=self.result)
+                        print(f'<{item._p.style}>', file=self.result)
                 print(item.text, file=self.result)
             print(file=self.result)
 
@@ -65,11 +65,9 @@ class DocXExtract:
         """
         Generate table contents as a smiple grid
         """
-        print('<table>', file=self.result)    
+        print('<table>', file=self.result)
         for row in table.rows:
-            items = []
-            for c in row.cells:
-                items.append(self.strip_text(c.text))
+            items = [self.strip_text(c.text) for c in row.cells]
             print(' | '.join(items), file=self.result)
         print('</table>', file=self.result)        
 
@@ -111,9 +109,10 @@ class DocXExtract:
                 report = (row_label._tc, cell_label._tc, cell_contents._tc)
                 if report not in  reported_tuples.keys():
                     reported_tuples[report] = True
-                    print('%s: %s' % (self.strip_text(cell_label.text),
-                                      self.strip_text(cell_contents.text)),
-                          file=self.result)
+                    print(
+                        f'{self.strip_text(cell_label.text)}: {self.strip_text(cell_contents.text)}',
+                        file=self.result,
+                    )
         print('</table>', file=self.result) 
 
 

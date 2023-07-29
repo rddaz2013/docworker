@@ -16,8 +16,8 @@ It is rather for us, the living, we here be dedicated to the great task remainin
 class DocConvertTestCase(unittest.TestCase):
 
   def testChunking(self):
-    tokenizer = tiktoken.encoding_for_model(section_util.AI_MODEL)    
-    chunks = [ x for x in doc_convert.chunks(TEXT, 20, tokenizer) ]
+    tokenizer = tiktoken.encoding_for_model(section_util.AI_MODEL)
+    chunks = list(doc_convert.chunks(TEXT, 20, tokenizer))
     self.assertEqual(len(chunks), 15)
     for chunk in chunks:
       self.assertTrue(len(chunk) <= 20)

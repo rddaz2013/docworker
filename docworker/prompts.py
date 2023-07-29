@@ -47,32 +47,16 @@ class Prompts:
     return [ (1, x[0], x[1]) for x in INITIAL_PROMPTS ]
 
   def get_prompt_id_by_name(self, name):
-    # Return the ID matching the name, None if not found
-    for prompt in self.prompts:
-      if prompt[1] == name:
-        return prompt[0]
-    return None
+    return next((prompt[0] for prompt in self.prompts if prompt[1] == name), None)
 
   def get_prompt_name_by_id(self, id):
-    # Return the prompt name matching the id, None if not found        
-    for prompt in self.prompts:
-      if prompt[0] == id:
-        return prompt[1]
-    return None
+    return next((prompt[1] for prompt in self.prompts if prompt[0] == id), None)
   
   def get_prompt_by_name(self, name):
-    # Return the prompt record matching the name, None if not found    
-    for prompt in self.prompts:
-      if prompt[1] == name:
-        return prompt
-    return None
+    return next((prompt for prompt in self.prompts if prompt[1] == name), None)
 
   def get_prompt_str_by_id(self, id):
-    # Return the prompt record matching the name, None if not found        
-    for prompt in self.prompts:
-      if prompt[0] == id:
-        return prompt[2]
-    return None
+    return next((prompt[2] for prompt in self.prompts if prompt[0] == id), None)
   
   def get_prompt_id(self, prompt_str):
     # Find a matching prompt, or create a new one
@@ -80,9 +64,8 @@ class Prompts:
       if prompt[2] == prompt_str:
         return prompt[0]
     # TODO: ensure name is unique
-    name = prompt_str[0:max(12, len(prompt) - 1)] + '...'      
-    id = self.add_prompt(name, prompt_str)
-    return id
+    name = f'{prompt_str[:max(12, len(prompt) - 1)]}...'
+    return self.add_prompt(name, prompt_str)
 
   def fixup_prompts(self):
     """

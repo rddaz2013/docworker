@@ -153,7 +153,7 @@ def get_doc_file_path(doc_name):
   Given a document name, return the path to the pickle doc 
   on the local storage.
   """
-  file_name = doc_name + '.daf'
+  file_name = f'{doc_name}.daf'
   return os.path.join(current_app.instance_path, g.user, file_name)
   
 
@@ -164,12 +164,9 @@ def get_document(doc_name):
   """
   if doc_name is None:
     return None
-  
+
   file_path = get_doc_file_path(doc_name)
-  if not os.path.exists(file_path):
-    return None
-  doc = document.load_document(file_path)
-  return doc
+  return document.load_document(file_path) if os.path.exists(file_path) else None
 
     
 @bp.before_app_request
@@ -211,11 +208,9 @@ def handle_login(request):
       session.permanent = False      
       session['user_key'] = None
     return redirect(url_for('analysis.main'))
-  
+
   load_logged_in_user()
-  if g.user is None:
-    return redirect(url_for('analysis.login'))    
-  return None
+  return redirect(url_for('analysis.login')) if g.user is None else None
 
 
 @bp.route("/", methods=("GET","POST"))
@@ -224,7 +219,7 @@ def main():
   login_redirect = handle_login(request)
   if login_redirect is not None:
     return login_redirect
-  
+
   doc = None
   if request.method == "GET":  
     doc_id = request.args.get('doc')
@@ -249,19 +244,20 @@ def main():
     doc_id = request.form.get('doc')
     run_id = request.form.get('run_id')    
 
-    prompt = request.form['prompt'].strip()      
+    prompt = request.form['prompt'].strip()
     doc = get_document(doc_id)
     if (doc is None or doc.is_running() or
         prompt is None or len(prompt) == 0):
       return redirect(url_for('analysis.main'))
-      
+
     file_path = get_doc_file_path(doc_id)
     run_state = doc_gen.start_docgen(file_path, doc, prompt, run_id)
     new_run_id = run_state.run_id
-    logging.info("Start doc run. doc_id = %s, run_id = %s, new_run_id = %s" %
-                 (doc_id, run_id, new_run_id))
+    logging.info(
+        f"Start doc run. doc_id = {doc_id}, run_id = {run_id}, new_run_id = {new_run_id}"
+    )
     document.save_document(file_path, doc)      
-      
+
     # Check if there are clearly not  enough tokens to run the generation
     if (doc_gen.run_input_tokens(doc, run_state) >
         users.token_count(get_db(), g.user)):
@@ -272,7 +268,7 @@ def main():
                  args=[current_app.config['DATABASE'], g.user,
                        file_path, doc, run_state])
       t.start()
-        
+
     return redirect(url_for('analysis.main',
                             doc=doc_id, run_id=new_run_id))
 
@@ -300,12 +296,12 @@ def background_docgen(db_config, username, file_path, doc, run_state):
 @bp.route("/doclist", methods=("GET","POST"))
 @login_required
 def doclist():
-  if request.method == "GET":    
-    user_dir = os.path.join(current_app.instance_path, g.user)  
-    file_list = []
-    for filename in os.listdir(user_dir):
-      if filename.endswith('.daf'):
-        file_list.append(filename[:-4]) 
+  if request.method == "GET":  
+    user_dir = os.path.join(current_app.instance_path, g.user)
+    file_list = [
+        filename[:-4] for filename in os.listdir(user_dir)
+        if filename.endswith('.daf')
+    ]
     return render_template("doclist.html", files=file_list)
 
   else:
@@ -322,7 +318,7 @@ def doclist():
       try:    
         doc_id = document.find_or_create_doc(user_dir, filename, file)
       except doc_convert.DocError as err:
-        flask.flash("Error loading file: %s" % str(err))
+        flask.flash(f"Error loading file: {str(err)}")
 
       if doc_id is not None:
         return redirect(url_for('analysis.main', doc=doc_id))
@@ -385,15 +381,15 @@ def segview():
 
           
 @bp.route("/export", methods=("POST",))
-@login_required          
+@login_required
 def export():
   doc_id = request.form.get('doc')
-  run_id = request.form.get('run_id')    
+  run_id = request.form.get('run_id')
   doc = get_document(doc_id)
   item_names = request.form.getlist('items')
   if doc is None:
     return redirect(url_for('analysis.main'))
-    
+
   out_file = io.BytesIO()
   if run_id is None:
     # Export document test
@@ -404,11 +400,13 @@ def export():
       out_file.write(doc.get_item_by_name(run_id, name).text().encode('utf-8'))
       out_file.write('\n\n'.encode('utf-8'))      
 
-  out_file.seek(0, 0)    
-  return flask.send_file(out_file, mimetype='text/plain;charset=utf-8',
-                         as_attachment=True,
-                         download_name='%s.txt' %
-                         os.path.basename(doc.name()))
+  out_file.seek(0, 0)
+  return flask.send_file(
+      out_file,
+      mimetype='text/plain;charset=utf-8',
+      as_attachment=True,
+      download_name=f'{os.path.basename(doc.name())}.txt',
+  )
 
   
   
@@ -458,7 +456,7 @@ def login():
         try:
           analysis_util.send_email(current_app.config, [address],
                                    "Access Link for DocWorker", email)
-          status = "Email sent to: %s" % address
+          status = f"Email sent to: {address}"
           users.note_email_send(get_db(), address)
 
         except Exception as e:
@@ -466,8 +464,8 @@ def login():
           status = "Email send failed"
 
       else:
-        status = "Email already recently sent to %s" % address
-      
+        status = f"Email already recently sent to {address}"
+
     return redirect(url_for('analysis.login', status=status))      
 
 if __name__ == "__main__":

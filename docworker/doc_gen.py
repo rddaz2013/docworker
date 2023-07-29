@@ -167,9 +167,7 @@ class RunState:
     """
     Return the next item to be processed, None if empty
     """
-    if len(self.to_run) == 0:
-      return None
-    return self.to_run[0]
+    return None if len(self.to_run) == 0 else self.to_run[0]
 
   def pop_item(self):
     """
@@ -185,8 +183,7 @@ class RunState:
     Does not make sense to re-generate a single result for this process.
     """
     # Check if there is one item and it is not a source_id
-    return (len(self.to_run) == 1 and
-            not self.to_run[0] in self.source_items)
+    return len(self.to_run) == 1 and self.to_run[0] not in self.source_items
     
   def note_step_completed(self, result_id):
     """
@@ -233,7 +230,7 @@ def build_prompt(prompt):
   Extend the given prompt to something that is effective for 
   GPT completions.
   """
-  return  "You will be provided with text delimited by triple quotes. Using all of the text, " + prompt
+  return f"You will be provided with text delimited by triple quotes. Using all of the text, {prompt}"
 
 
 
@@ -248,7 +245,7 @@ def post_process_completion(response_record):
       return
     logging.info("truncated response. from %d to %d" %
                  (len(response_record.text), last_cr + 1))
-    response_record.text = response_record.text[0:last_cr + 1]
+    response_record.text = response_record.text[:last_cr + 1]
 
     
 def start_docgen(file_path, doc, prompt, src_run_id=None, transOp=False):
@@ -258,11 +255,7 @@ def start_docgen(file_path, doc, prompt, src_run_id=None, transOp=False):
   """
   run_state = RunState()
   run_id = doc.mark_start_run(prompt, src_run_id)
-  # Run on all doc segments by default.
-  item_ids = []
-  for item in doc.get_ordered_items(run_id):
-    item_ids.append(item.id())
-        
+  item_ids = [item.id() for item in doc.get_ordered_items(run_id)]
   run_state.start_run(prompt, item_ids, run_id, transOp)
   document.save_document(file_path, doc)
   return run_state
@@ -292,7 +285,7 @@ def run_next_docgen(file_path, doc, run_state):
   text_list = []
   token_count = 0
   status_message = ""
-  
+
   # Pull items until max size would be exceeded
   while not done:
     item_id = run_state.next_item()
@@ -304,7 +297,7 @@ def run_next_docgen(file_path, doc, run_state):
     if item is None:
       run_state.pop_item()
       continue
-    
+
     count = len(tokenizer.encode(item.text()))
     if (token_count != 0 and
         count + token_count > section_util.TEXT_EMBEDDING_CHUNK_SIZE):
@@ -326,7 +319,7 @@ def run_next_docgen(file_path, doc, run_state):
       status_message += ", "
     status_message += item.name()
 
-  if len(item_id_list) == 0:
+  if not item_id_list:
     logging.error("No content for docgen")
     return
 
@@ -336,10 +329,9 @@ def run_next_docgen(file_path, doc, run_state):
   logging.info("run completion with %d items" % len(item_id_list))
 
   # Update status with last item
-  doc.set_status_message("%s on %s" %
-                         (prompt, status_message), run_state.run_id)
+  doc.set_status_message(f"{prompt} on {status_message}", run_state.run_id)
   document.save_document(file_path, doc)
-  
+
   err_message = ''
   def status_cb(message):
     err_message = str(message)
@@ -356,12 +348,8 @@ def run_next_docgen(file_path, doc, run_state):
                                    max_tokens, status_cb)
 
   post_process_completion(response_record)
-  
-  if response_record.text is None:
-    text = err_message
-  else:
-    text = response_record.text
-    
+
+  text = err_message if response_record.text is None else response_record.text
   completion = doc.add_new_completion(
     item_id_list,
     text,

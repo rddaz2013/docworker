@@ -41,10 +41,7 @@ class Segment:
     return self.text_record.name
 
   def suffix(self):
-    m = re.match('.*\\s(\\d+)', self.name())
-    if m:
-      return m.group(1)
-    return '0'
+    return m[1] if (m := re.match('.*\\s(\\d+)', self.name())) else '0'
 
   def text(self):
     return self.text_record.text
@@ -98,11 +95,7 @@ class Completion:
     True if the name of the completion implies it was generated for
     a doc segment
     """
-    # TOOD: beter way to do this using ids.
-    m = re.match('.*(\\d+).\\d+', self.name())
-    if m:
-      return m.group(1)
-    return None
+    return m[1] if (m := re.match('.*(\\d+).\\d+', self.name())) else None
 
   def is_doc_segment(self):
     return False
@@ -136,25 +129,24 @@ class RunRecord:
     for segment in self.doc_segments:
       if segment.name() == name:
         return segment
-    
-    for completion in self.completions:
-      if completion.name() == name:
-        return completion
-    return None
+
+    return next(
+        (completion
+         for completion in self.completions if completion.name() == name),
+        None,
+    )
     
   def get_item_by_id(self, id):
     for segment in self.doc_segments:
       if segment.id() == id:
         return segment
-    for completion in self.completions:
-      if completion.id() == id:
-        return completion
-    return None
+    return next(
+        (completion for completion in self.completions if completion.id() == id),
+        None,
+    )
 
   def get_name_by_id(self, id):
-    if id in self.text_records.keys():
-      return self.text_records[id].name
-    return None
+    return self.text_records[id].name if id in self.text_records.keys() else None
 
   def new_text_record(self, name, text, token_count):
     text_record = TextRecord(self.next_text_id, name, text, token_count)
@@ -164,7 +156,7 @@ class RunRecord:
 
   def add_new_segment(self, text, token_count):
     # name of segment is just Block 1, Block 2, Block 3, ...
-    name = "Block " + str(len(self.doc_segments) + 1)
+    name = f"Block {str(len(self.doc_segments) + 1)}"
     text_record = self.new_text_record(name, text, token_count)
     segment = Segment(text_record)
     self.doc_segments.append(segment)
@@ -184,27 +176,25 @@ class RunRecord:
     # Generated 1, Generated 2, ...
     name_prefix = None
     seg_completion = False
-    
+
     # Find if this is a completion for a specific doc segment.
     if len(input_ids) == 1:
       id = input_ids[0]
       for segment in self.doc_segments:
         if segment.text_record.id == id:
           seg_completion = True
-          name_prefix = 'Generated ' + segment.suffix() + '.'
+          name_prefix = f'Generated {segment.suffix()}.'
           break
 
     # Generated completion not based on a specific segement
     if name_prefix is None:
       name_prefix = 'Generated '
 
-    # Count the number of instances with the prefix for next name
-    count = 0
-    for completion in self.completions:
-      if (((seg_completion and completion.doc_segment_name()) or
-          (not seg_completion and completion.doc_segment_name() is None)) and
-          completion.text_record.name.startswith(name_prefix)):
-        count += 1
+    count = sum(
+        1 for completion in self.completions
+        if (((seg_completion and completion.doc_segment_name()) or
+             (not seg_completion and completion.doc_segment_name() is None))
+            and completion.text_record.name.startswith(name_prefix)))
     return name_prefix + str(count+1)
 
   def get_gen_items(self):
@@ -223,9 +213,7 @@ class RunRecord:
             source_ids.remove(source_id)
             result.append(source_item)            
         result.append(completion)
-    for source_id in source_ids:
-      result.append(self.get_item_by_id(source_id))
-      
+    result.extend(self.get_item_by_id(source_id) for source_id in source_ids)
     return result
   
   def get_ordered_items_visit_node(self, node, result):
@@ -246,11 +234,9 @@ class RunRecord:
     completion = self.get_item_by_id(self.result_id)
     if completion is not None:
       self.get_ordered_items_visit_node(completion, result)
-        
+
     # add the segments
-    for segment in self.doc_segments:
-      result.append(segment)
-            
+    result.extend(iter(self.doc_segments))
     return result
 
   def comp_family_visit_node(self, depth, completion, result):
@@ -282,9 +268,9 @@ class RunRecord:
     
     return: (max, list[])  - list entry: (depth, completion)
     """
-    if id == None:
+    if id is None:
       id = self.result_id
-      
+
     max_depth = 0
     result = []
     completion = self.get_item_by_id(id)
@@ -297,9 +283,7 @@ class RunRecord:
     """
     Return the text that was the source of the completion.
     """
-    segments = []
-    for item in self.doc_segments:
-      segments.append(item.text())
+    segments = [item.text() for item in self.doc_segments]
     return ''.join(segments)
   
 class Document:
@@ -358,13 +342,11 @@ class Document:
       return None
     if len(text) < 90:
       return self.strip_text(text)
-    return self.strip_text(text[0:45] + " ... " + text[-46:])
+    return self.strip_text(f"{text[:45]} ... {text[-46:]}")
 
 
   def get_current_run_record(self):
-    if len(self.run_list) > 0:
-      return self.run_list[-1]
-    return None
+    return self.run_list[-1] if len(self.run_list) > 0 else None
 
   def get_run_list(self):
     return self.run_list
@@ -384,11 +366,11 @@ class Document:
       except:
         run_id = None
 
-    # Look for matching run_id
-    for run_record in self.run_list:
-      if run_record.run_id == run_id:
-        return run_record
-    return None
+    return next(
+        (run_record
+         for run_record in self.run_list if run_record.run_id == run_id),
+        None,
+    )
 
   def get_src_text(self, run_id=None):
     record = self.get_run_record(run_id)    
@@ -398,25 +380,15 @@ class Document:
 
   def get_item_by_name(self, run_id, name):
     record = self.get_run_record(run_id)
-    if record is None:
-      return None
-    return record.get_item_by_name(name)
+    return None if record is None else record.get_item_by_name(name)
 
   def get_item_by_id(self, run_id, id):
     record = self.get_run_record(run_id)
-    if record is None:
-      return None
-    return record.get_item_by_id(id)
+    return None if record is None else record.get_item_by_id(id)
 
   def get_name_by_id(self, run_id, id):
     record = self.get_run_record(run_id)
-    if record is None:
-      return None
-    return record.get_name_by_id(id)
-    
-    if id in self.text_records.keys():
-      return self.text_records[id].name
-    return None
+    return None if record is None else record.get_name_by_id(id)
 
   def get_names_for_ids(self, run_id, ids):
     names = []
@@ -453,9 +425,7 @@ class Document:
     None if no result yet
     """
     item = self.get_result_item(run_id)
-    if item is not None:
-      return item.name()
-    return None
+    return item.name() if item is not None else None
   
   def run_record_count(self):
     """
@@ -470,9 +440,7 @@ class Document:
     appropriate order for display.
     """
     run_record = self.get_run_record(run_id)
-    if run_record != None:
-      return run_record.get_gen_items()
-    return None
+    return run_record.get_gen_items() if run_record != None else None
 
   def get_ordered_items(self, run_id):
     """
@@ -480,9 +448,7 @@ class Document:
     for display.
     """
     run_record = self.get_run_record(run_id)
-    if run_record != None:
-      return run_record.get_ordered_items()
-    return []
+    return run_record.get_ordered_items() if run_record != None else []
 
   def get_completion_family(self, run_id, id=None):
     """
@@ -492,23 +458,17 @@ class Document:
     return: (max, list[])  - list entry: (depth, completion)
     """
     run_record = self.get_run_record(run_id)
-    if run_record != None:
-      return run_record.get_completion_family(id)
-    return None
+    return run_record.get_completion_family(id) if run_record != None else None
     
   def get_completion_list(self, run_id):
     """
     Return a simple list of completions for the run.
     """
     run_record = self.get_run_record(run_id)
-    if run_record != None:
-      return run_record.completions
-    return None
+    return run_record.completions if run_record != None else None
 
   def doc_tokens(self):
-    # TODO: return token count for doc
-    total = 0
-    return total
+    return 0
 
   def gen_tokens(self):
     total = 0
@@ -526,17 +486,10 @@ class Document:
 
   def segment_count(self, run_id):
     run_record = self.get_run_record(run_id)
-    if run_record != None:
-      return len(run_record.doc_segments)
-    return 0
+    return len(run_record.doc_segments) if run_record != None else 0
     
   def final_completion_count(self):
-    count = 0
-    # TODO: see if this is correct
-    for run_record in self.run_list:
-      if run_record.result_id != 0:
-        count += 1
-    return count
+    return sum(1 for run_record in self.run_list if run_record.result_id != 0)
 
   def new_run_record(self, prompt_id, src_run_id=None):
     run_record = RunRecord(self.next_run_id, prompt_id)
@@ -547,17 +500,13 @@ class Document:
     if src_run_id is None:    
       text = self.doc_text
     else:
-      # But may process a previous result
-      text = ""
       item = self.get_result_item(src_run_id)
-      if item is not None:
-        text = item.text()
-        
+      text = item.text() if item is not None else ""
     # Populate source items    
     chunks = doc_convert.chunk_text(text)
     for chunk in chunks:
       run_record.add_new_segment(chunk.get_text(), chunk.size)
-      
+
     return run_record
   
 
@@ -606,9 +555,7 @@ class Document:
   
   def get_status_message(self, run_id=None):
     run_record = self.get_run_record(run_id)
-    if run_record is not None:
-      return run_record.status_message
-    return None
+    return run_record.status_message if run_record is not None else None
 
   def set_status_message(self, message, run_id=None):
     run_record = self.get_run_record(run_id)
@@ -623,9 +570,7 @@ class Document:
 
   def get_completed_steps(self, run_id=None):
     run_record = self.get_run_record(run_id)
-    if run_record is not None:
-      return run_record.completed_steps
-    return 0
+    return run_record.completed_steps if run_record is not None else 0
 
   def run_exists(self, run_id):
     """
@@ -645,9 +590,7 @@ class Document:
 
   def run_record_prompt(self, run_record):
     prompt = self.prompts.get_prompt_str_by_id(run_record.prompt_id)
-    if prompt is not None:
-      return prompt
-    return ""
+    return prompt if prompt is not None else ""
 
   def get_doc_text(self):
     return self.doc_text
@@ -658,19 +601,15 @@ class Document:
     self.md5_digest = md5_digest
 
 def load_document(file_name):
-  f = open(file_name, 'rb')
-  document = pickle.load(f)
-  document.prompts.fixup_prompts()
-  f.close()
+  with open(file_name, 'rb') as f:
+    document = pickle.load(f)
+    document.prompts.fixup_prompts()
   return document
   
 def save_document(file_name, document):
-  # Write and rename to avoid a read of a partial write.
-  # TODO: use tmp file to avoid corruptiojn of two writes
-  f = open(file_name + '.tmp', 'wb')
-  pickle.dump(document, f)
-  f.close()
-  os.replace(file_name + '.tmp', file_name)
+  with open(f'{file_name}.tmp', 'wb') as f:
+    pickle.dump(document, f)
+  os.replace(f'{file_name}.tmp', file_name)
 
 
 def find_or_create_doc(user_dir, filename, file):
@@ -698,7 +637,7 @@ def find_or_create_doc(user_dir, filename, file):
   i = 0
   done = False
   while not done:
-    file_path = os.path.join(user_dir, target_file + ".daf")
+    file_path = os.path.join(user_dir, f"{target_file}.daf")
     if os.path.exists(file_path):
       document = load_document(file_path)
       if document.md5_digest == md5_digest:
@@ -707,7 +646,7 @@ def find_or_create_doc(user_dir, filename, file):
         # Try a different filename
         i += 1
         target_file = filename + "(%d)" % (i)
-      
+
     else:
       # File does not exist, create it
       done = True

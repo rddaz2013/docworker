@@ -17,14 +17,12 @@ class DwCLITestCase(unittest.TestCase):
     doc_gen.FAKE_AI_SLEEP=0
   
   def tearDown(self):
-    self.user_dir.cleanup()    
-    pass
+    self.user_dir.cleanup()
 
   def create_doc(self):
-    f = open(self.doc_path, 'rb')
-    filename = document.find_or_create_doc(self.user_dir.name,
-                                           self.orig_file, f)
-    f.close()
+    with open(self.doc_path, 'rb') as f:
+      filename = document.find_or_create_doc(self.user_dir.name,
+                                             self.orig_file, f)
     return filename
 
   def testImportDoc(self):

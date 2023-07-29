@@ -43,7 +43,7 @@ class ItemsState:
     self.tokens = 0    
 
   def sel_id(self, item):
-    return "cl_" + item.name()
+    return f"cl_{item.name()}"
   
   def selected_names(self):
     return [ x.name() for x in self.selected_items ]
@@ -77,10 +77,8 @@ class ItemsState:
     if item in result:
       index = result.index(item)
       index += delta
-      if index < 0:
-        index = 0
-      if index >= len(result):
-        index = len(result)
+      index = max(index, 0)
+      index = min(index, len(result))
       result.remove(item)
       result.insert(index, item)
     return [ x.name() for x in result ]

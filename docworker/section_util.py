@@ -97,10 +97,7 @@ class Section:
     return new_section
 
   def size(self, tokenizer):
-    size = 0
-    for child in self.elements:
-      size += child.size(tokenizer)
-    return size
+    return sum(child.size(tokenizer) for child in self.elements)
 
   def first_line(self):
     if len(self.elements) > 0 and self.elements[0].is_leaf():
@@ -156,9 +153,7 @@ class Document:
     return len(self.doc_lines) > 0
   
   def next_line(self):
-    if len(self.doc_lines) == 0:
-      return None
-    return self.doc_lines.pop(0).strip()
+    return None if len(self.doc_lines) == 0 else self.doc_lines.pop(0).strip()
 
 def read_table(doc, section):
   done = False
@@ -172,7 +167,7 @@ def read_table(doc, section):
       section.append_text(line)
 
 def find_section_level(section, level):
-  if section.parent == None:
+  if section.parent is None:
     return section
   if section.level < level:
     return section
@@ -180,12 +175,10 @@ def find_section_level(section, level):
 
 def chunks(top_section, tokenizer):
   result = Chunk()
-  element_stack = []
-  element_stack.append(top_section)
-
-  while len(element_stack) > 0:
+  element_stack = [top_section]
+  while element_stack:
     element = element_stack.pop()
-    
+
     # if adding new content is too big and the current result
     # isn't tiney, yield current results
     size = element.size(tokenizer)
@@ -199,8 +192,7 @@ def chunks(top_section, tokenizer):
     # for a sub-section, add child elements to the stack in reverse
     if not element.is_leaf():
       element.elements.reverse()
-      for child in element.elements:
-        element_stack.append(child)
+      element_stack.extend(iter(element.elements))
       element.elements.reverse()
     else:
       # Add text to results
@@ -254,7 +246,7 @@ def parse_sections(file):
 
     m = re.match('<Heading(\d)>', line)
     if m is not None:
-      level = int(m.group(1))
+      level = int(m[1])
       if current_section.level != level or current_section.has_content():
         logging.debug('new section: %d: %s', level, line) 
         parent = find_section_level(current_section, level)
@@ -266,11 +258,10 @@ def parse_sections(file):
 
 
 def run_test():
-  f = open('SCAP.txt')
-  for chunk in chunks_from_structured_file(f):
-    print("chunk: size = %d" % chunk.size)
-    print(chunk.get_text())
-  f.close()
+  with open('SCAP.txt') as f:
+    for chunk in chunks_from_structured_file(f):
+      print("chunk: size = %d" % chunk.size)
+      print(chunk.get_text())
 
 if __name__ == "__main__":
   run_test()

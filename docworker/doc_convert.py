@@ -31,26 +31,17 @@ def read_file(filename: str, file: io.BytesIO) -> str:
       docx_extract.load_doc(file)
     except Exception as e:
       raise DocError("Not a valid DOCX file")
-      in_file = docx_extract.get_result()
     in_file = docx_extract.get_result()
-    text = in_file.read()
-    return text
-
+    return in_file.read()
   elif type == 'application/pdf':
-    pages = []
     pdf = pdfplumber.open(file)
-    for page in pdf.pages:
-      pages.append(page.extract_text_simple())
-    text = '\n'.join(pages)
-    return text
-
+    pages = [page.extract_text_simple() for page in pdf.pages]
+    return '\n'.join(pages)
   elif type == 'text/plain':
     infile = io.TextIOWrapper(file, encoding='utf-8')
-    text = infile.read()
-    return text
-
+    return infile.read()
   else:
-    raise DocError("Unsupported file format: %s" % type)    
+    raise DocError(f"Unsupported file format: {type}")    
 
 
 def chunk_text(text: str):
@@ -71,14 +62,13 @@ def chunk_text(text: str):
   return result
   
 def docx_to_chunks(file: io.BytesIO) -> [section_util.Chunk]:
-    docx_extract = extract_docx.DocXExtract()
-    try:
-      docx_extract.load_doc(file)
-    except Exception as e:
-      raise DocError("Not a valid DOCX file")
-      in_file = docx_extract.get_result()
-    in_file = docx_extract.get_result()
-    return section_util.chunks_from_structured_file(in_file)
+  docx_extract = extract_docx.DocXExtract()
+  try:
+    docx_extract.load_doc(file)
+  except Exception as e:
+    raise DocError("Not a valid DOCX file")
+  in_file = docx_extract.get_result()
+  return section_util.chunks_from_structured_file(in_file)
 
 def chunks(text, n, tokenizer):
   # Split a text into smaller chunks of size n,

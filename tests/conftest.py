@@ -47,7 +47,7 @@ class Auth:
     with self._app.app_context():
       db = get_db()
       key = users.get_user_key(db, user)
-      return self._client.get('/?authkey=%s' % key)
+      return self._client.get(f'/?authkey={key}')
 
 
 @pytest.fixture()

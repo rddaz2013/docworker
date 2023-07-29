@@ -25,8 +25,7 @@ class BasicDocumentTestCase(unittest.TestCase):
     self.user_dir = tempfile.TemporaryDirectory()    
   
   def tearDown(self):
-    self.user_dir.cleanup()    
-    pass
+    self.user_dir.cleanup()
   
   def testInit(self):
     self.assertIsNotNone(self.doc.get_run_record(1))
@@ -164,7 +163,7 @@ class BasicDocumentTestCase(unittest.TestCase):
     self.assertIsNotNone(self.doc.get_doc_text())
     self.assertIsNotNone(self.doc.name)
 
-    doc_file = os.path.join(self.user_dir.name, filename + '.daf')
+    doc_file = os.path.join(self.user_dir.name, f'{filename}.daf')
     document.save_document(doc_file, self.doc)
     self.doc = document.load_document(doc_file)
 
@@ -173,22 +172,19 @@ class BasicDocumentTestCase(unittest.TestCase):
     filename = 'PA utility.docx'
     path = os.path.join(os.path.dirname(__file__),
                         'samples/', filename)
-    f = open(path, 'rb')
-    filename1 = document.find_or_create_doc(self.user_dir.name, filename, f)
-    f.close()
+    with open(path, 'rb') as f:
+      filename1 = document.find_or_create_doc(self.user_dir.name, filename, f)
     self.assertIsNotNone(filename1)
 
-    f = open(path, 'rb')
-    filename2 = document.find_or_create_doc(self.user_dir.name, filename, f)    
-    f.close()
+    with open(path, 'rb') as f:
+      filename2 = document.find_or_create_doc(self.user_dir.name, filename, f)
     self.assertEqual(filename1, filename2)
-    
+
     filename = 'PA Agenda.docx'
     path = os.path.join(os.path.dirname(__file__),
                         'samples/', filename)
-    f = open(path, 'rb')
-    filename3 = document.find_or_create_doc(self.user_dir.name, filename, f)
-    f.close()
+    with open(path, 'rb') as f:
+      filename3 = document.find_or_create_doc(self.user_dir.name, filename, f)
     self.assertNotEqual(filename1, filename3)
 
     
